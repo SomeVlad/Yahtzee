@@ -2,20 +2,27 @@ import Phaser from "phaser"
 
 class YahtzeeGame extends Phaser.Scene {
     dice: Phaser.GameObjects.Sprite[] = []
-
     rollButton!: Phaser.GameObjects.Text
-
     rollsLeft: number = 3
-
-    scoreText: Phaser.GameObjects.Text
-    categories: { [key: string]: { score: number; used: boolean } }
+    scoreText!: Phaser.GameObjects.Text // Ensure it's initialized in create method
+    categories: {
+        [key: string]: { label: string; score: number; used: boolean }
+    } = {
+        Ones: { label: "Ones", score: 0, used: false },
+        Twos: { label: "Twos", score: 0, used: false },
+        Threes: { label: "Threes", score: 0, used: false },
+        Fours: { label: "Fours", score: 0, used: false },
+        Fives: { label: "Fives", score: 0, used: false },
+        Sixes: { label: "Sixes", score: 0, used: false },
+        FullHouse: { label: "Full House", score: 0, used: false },
+        Chance: { label: "Chance", score: 0, used: false },
+    }
 
     constructor() {
         super("YahtzeeGame")
     }
 
     preload() {
-        // Load dice images
         this.load.image("dice1", "assets/dice1.png")
         this.load.image("dice2", "assets/dice2.png")
         this.load.image("dice3", "assets/dice3.png")
@@ -25,105 +32,119 @@ class YahtzeeGame extends Phaser.Scene {
     }
 
     create() {
-        // Create 5 dice at different positions
+        this.scoreText = this.add.text(16, 16, "Score: ", {
+            fontSize: "32px",
+            color: "#FFF",
+        })
+
         for (let i = 0; i < 5; i++) {
             const dice = this.add
                 .sprite(150 + i * 100, 100, "dice1")
                 .setInteractive()
             dice.setData("value", 1) // Initial value
+            dice.setData("held", false) // Initialize held state
             let heldIndicator = this.add
                 .text(150 + i * 100, 150, "", {
                     fontSize: "16px",
                     color: "#FFFFFF",
                 })
                 .setOrigin(0.5)
-            dice.setData("heldIndicator", heldIndicator)
-
             dice.on("pointerdown", () => {
-                // if (this.rollsLeft < 3) {
-                //     // Allow toggling hold state after the first roll
-                //     dice.setData("held", !dice.getData("held"))
-                //     dice.setTint(dice.getData("held") ? 0x00ff00 : 0xffffff)
-                // }
-                let isHeld = dice.getData("held")
-                dice.setData("held", !isHeld)
-                dice.setTint(!isHeld ? 0x86bfda : 0xffffff) // Change tint to indicate selection
-                heldIndicator.setText(!isHeld ? "Held" : "")
+                if (this.rollsLeft > 0 && this.rollsLeft < 3) {
+                    // Only allow holding if there are rolls left and after the first roll
+                    let isHeld = dice.getData("held")
+                    dice.setData("held", !isHeld)
+                    dice.setTint(!isHeld ? 0x86bfda : 0xffffff) // Change tint to indicate selection
+                    heldIndicator.setText(!isHeld ? "Held" : "")
+                }
             })
             this.dice.push(dice)
-
-            this.scoreText = this.add.text(16, 16, "Score: 0", {
-                fontSize: "32px",
-                color: "#FFF",
-            })
-            this.categories = {
-                Ones: { score: 0, used: false },
-                // Add other categories similarly...
-            }
-
-            // Example: Interactive text for scoring category "Ones"
-            let onesText = this.add
-                .text(400, 550, "Ones", { fontSize: "24px", color: "#FFF" })
-                .setInteractive()
-            onesText.on("pointerdown", () => this.selectCategory("Ones"))
         }
 
-        // Roll button
+        // Roll button setup...
         this.rollButton = this.add
             .text(400, 500, "Roll Dice", { fontSize: "32px" })
             .setInteractive()
             .on("pointerdown", () => this.rollDice())
-    }
 
-    selectCategory(categoryName: string) {
-        if (this.categories[categoryName].used) return // Ignore if already used
-
-        // Example scoring calculation for "Ones"
-        let score = this.dice.filter(
-            (dice) => dice.getData("value") === 1,
-        ).length // Replace with actual scoring logic
-        this.categories[categoryName].score = score
-        this.categories[categoryName].used = true
-
-        // Update score display
-        this.scoreText.setText(`Score: ${score}`)
+        // Category selection setup...
+        Object.entries(this.categories).forEach(
+            ([category, { label, used, score }], index) => {
+                this.add
+                    .text(400, 550 + 30 * index, label, {
+                        fontSize: "24px",
+                        color: "#FFF",
+                    })
+                    .setInteractive()
+                    .on("pointerdown", () => this.selectCategory(category))
+            },
+        )
     }
 
     rollDice() {
-        // Add a simple animation effect for rolling dice
-        this.dice.forEach((dice) => {
-            // Only animate non-held dice
-            if (!dice.getData("held")) {
-                this.tweens.add({
-                    targets: dice,
-                    y: "-=50",
-                    yoyo: true,
-                    duration: 100,
-                    onComplete: () => {
-                        let value = Phaser.Math.Between(1, 6)
-                        dice.setTexture(`dice${value}`)
-                        dice.setData("value", value)
-                    },
-                })
-            }
-        })
-
         if (this.rollsLeft > 0) {
             this.dice.forEach((dice) => {
                 if (!dice.getData("held")) {
-                    const value = Phaser.Math.Between(1, 6)
+                    // Roll and animate dice...
+                    let value = Phaser.Math.Between(1, 6)
                     dice.setTexture(`dice${value}`)
                     dice.setData("value", value)
                 }
             })
             this.rollsLeft--
             this.updateRollsLeftText()
-
-            let onesScore = this.dice.filter(
-                (dice) => dice.getData("value") === 1,
-            ).length
-            console.log(`Score for ones: ${onesScore}`) // This would be where you update the UI instead
         }
+    }
+
+    selectCategory(categoryName: string) {
+        const category = this.categories[categoryName]
+
+        if (category.used) return // Ignore if already used
+
+        let score = 0
+        const values = this.dice.map((dice) => dice.getData("value"))
+
+        // Map category names to their numeric values
+        const categoryValues = {
+            Ones: 1,
+            Twos: 2,
+            Threes: 3,
+            Fours: 4,
+            Fives: 5,
+            Sixes: 6,
+        }
+
+        switch (categoryName) {
+            case "Ones":
+            case "Twos":
+            case "Threes":
+            case "Fours":
+            case "Fives":
+            case "Sixes":
+                // Generalize scoring for numeric categories
+                const categoryValue = categoryValues[categoryName]
+                score = values
+                    .filter((value) => value === categoryValue)
+                    .reduce((acc, value) => acc + value, 0)
+                break
+            case "FullHouse":
+                const counts = values.reduce((acc, value) => {
+                    acc[value] = (acc[value] || 0) + 1
+                    return acc
+                }, {})
+                const isFullHouse =
+                    Object.values(counts).sort().join("") === "23"
+                score = isFullHouse ? 25 : 0
+                break
+            case "Chance":
+                score = values.reduce((acc, value) => acc + value, 0)
+                break
+            // Implement other categories...
+        }
+
+        category.score = score
+        category.used = true
+        this.scoreText.setText(`Score for ${category.label}: ${score}`)
     }
 
     updateRollsLeftText() {
@@ -137,7 +158,7 @@ const config: Phaser.Types.Core.GameConfig = {
     height: 600,
     scene: YahtzeeGame,
     scale: {
-        mode: Phaser.Scale.RESIZE, // This will resize the game to fill the whole screen
+        mode: Phaser.Scale.RESIZE,
         parent: "phaser-game",
         width: "100%",
         height: "100%",
