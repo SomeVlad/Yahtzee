@@ -79533,7 +79533,6 @@ var slice = curry(sliceFn);
 var swap = curry(swapFn);
 var when = curry(whenFn);
 var zipWith = curry(zipWithFn);
-var $reduce = reduce;
 var $toPairs = toPairs;
 
 // index.ts
@@ -79544,10 +79543,48 @@ var createCategories = function() {
       label,
       score: 0,
       used: false,
-      textObject: {}
+      textObject: null
     };
   }, {});
   return dict;
+};
+var countValues = function(values) {
+  return values.reduce((acc, value) => {
+    acc[value] = (acc[value] || 0) + 1;
+    return acc;
+  }, {});
+};
+var calculateScoreForNumericCategories = function(values, categoryValue) {
+  return values.filter((value) => value === categoryValue).reduce((acc, value) => acc + value, 0);
+};
+var calculateFullHouseScore = function(values) {
+  const counts = countValues(values);
+  const isFullHouse = Object.values(counts).sort().join("") === "23";
+  return isFullHouse ? 25 : 0;
+};
+var calculateChanceScore = function(values) {
+  return values.reduce((acc, value) => acc + value, 0);
+};
+var calculateThreeOfAKindScore = function(values) {
+  const counts = countValues(values);
+  return Object.values(counts).some((count) => count >= 3) ? calculateChanceScore(values) : 0;
+};
+var calculateFourOfAKindScore = function(values) {
+  const counts = countValues(values);
+  return Object.values(counts).some((count) => count >= 4) ? calculateChanceScore(values) : 0;
+};
+var calculateSmallStraightScore = function(values) {
+  const sortedUniqueValues = [...new Set(values)].sort().join("");
+  const smallStrSeq = ["1234", "2345", "3456"];
+  return smallStrSeq.some((seq) => sortedUniqueValues.includes(seq)) ? 30 : 0;
+};
+var calculateLargeStraightScore = function(values) {
+  const sortedUniqueVal = [...new Set(values)].sort().join("");
+  return ["12345", "23456"].includes(sortedUniqueVal) ? 40 : 0;
+};
+var calculateYahtzeeScore = function(values) {
+  const counts = countValues(values);
+  return Object.values(counts).some((count) => count === 5) ? 50 : 0;
 };
 var CategoryLabelsByName = {
   Ones: "Ones",
@@ -79570,10 +79607,9 @@ class YahtzeeGame extends import_phaser.default.Scene {
   rollButton;
   rollsLeft = 3;
   scoreText;
-  categories;
+  categories = createCategories();
   constructor() {
     super("YahtzeeGame");
-    this.categories = createCategories();
   }
   calculateScoreForNumericCategories(values, categoryValue) {
     return values.filter((value) => value === categoryValue).reduce((acc, value) => acc + value, 0);
@@ -79586,11 +79622,7 @@ class YahtzeeGame extends import_phaser.default.Scene {
     this.load.image("dice5", "assets/dice5.png");
     this.load.image("dice6", "assets/dice6.png");
   }
-  create() {
-    this.scoreText = this.add.text(16, 16, "Score: ", {
-      fontSize: "32px",
-      color: "#FFF"
-    });
+  initializeDice() {
     for (let i = 0;i < 5; i++) {
       const dice = this.add.sprite(150 + i * 100, 100, "dice1").setInteractive();
       dice.setData("value", 1);
@@ -79609,13 +79641,24 @@ class YahtzeeGame extends import_phaser.default.Scene {
       });
       this.dice.push(dice);
     }
-    this.rollButton = this.add.text(400, 500, "Roll Dice", { fontSize: "32px" }).setInteractive().on("pointerdown", () => this.rollDice());
-    $toPairs(this.categories).forEach(([category, { label, used }], index) => {
-      this.categories[category].textObject = this.add.text(400, 550 + 30 * index, label, {
+  }
+  initializeCategories() {
+    $toPairs(this.categories).forEach(([name, category], index) => {
+      const yPos = 550 + 30 * index;
+      category.textObject = this.add.text(400, yPos, category.label, {
         fontSize: "24px",
         color: "#FFF"
-      }).setInteractive().on("pointerdown", () => this.selectCategory(category));
+      }).setInteractive().on("pointerdown", () => this.selectCategory(name));
     });
+  }
+  create() {
+    this.scoreText = this.add.text(16, 16, "Score: ", {
+      fontSize: "32px",
+      color: "#FFF"
+    });
+    this.initializeDice();
+    this.initializeCategories();
+    this.rollButton = this.add.text(400, 500, "Roll Dice", { fontSize: "32px" }).setInteractive().on("pointerdown", () => this.rollDice());
   }
   rollDice() {
     if (this.rollsLeft > 0) {
@@ -79630,77 +79673,50 @@ class YahtzeeGame extends import_phaser.default.Scene {
       this.updateRollsLeftText();
     }
   }
+  calculateScore(categoryName, values) {
+    switch (categoryName) {
+      case "Ones":
+        return calculateScoreForNumericCategories(values, 1);
+      case "Twos":
+        return calculateScoreForNumericCategories(values, 2);
+      case "Threes":
+        return calculateScoreForNumericCategories(values, 3);
+      case "Fours":
+        return calculateScoreForNumericCategories(values, 4);
+      case "Fives":
+        return calculateScoreForNumericCategories(values, 5);
+      case "Sixes":
+        return calculateScoreForNumericCategories(values, 6);
+      case "FullHouse":
+        return calculateFullHouseScore(values);
+      case "Chance":
+        return calculateChanceScore(values);
+      case "ThreeOfAKind":
+        return calculateThreeOfAKindScore(values);
+      case "FourOfAKind":
+        return calculateFourOfAKindScore(values);
+      case "SmallStraight":
+        return calculateSmallStraightScore(values);
+      case "LargeStraight":
+        return calculateLargeStraightScore(values);
+      case "YAHTZEE":
+        return calculateYahtzeeScore(values);
+      default:
+        return 0;
+    }
+  }
   selectCategory(categoryName) {
     const category = this.categories[categoryName];
     if (category.used)
       return;
-    let score = 0;
     const values = this.dice.map((dice) => dice.getData("value"));
-    const valueCounts = $reduce((acc, value) => {
-      acc[value] = (acc[value] || 0) + 1;
-      return acc;
-    }, {}, values);
-    const categoryValues = {
-      Ones: 1,
-      Twos: 2,
-      Threes: 3,
-      Fours: 4,
-      Fives: 5,
-      Sixes: 6
-    };
-    switch (categoryName) {
-      case "Ones":
-      case "Twos":
-      case "Threes":
-      case "Fours":
-      case "Fives":
-      case "Sixes": {
-        const categoryValue = categoryValues[categoryName];
-        score = this.calculateScoreForNumericCategories(values, categoryValue);
-        break;
-      }
-      case "FullHouse": {
-        const counts = $reduce((acc, value) => {
-          acc[value] = (acc[value] || 0) + 1;
-          return acc;
-        }, {}, values);
-        const isFullHouse = Object.values(counts).sort().join("") === "23";
-        score = isFullHouse ? 25 : 0;
-        break;
-      }
-      case "Chance": {
-        score = values.reduce((acc, value) => acc + value, 0);
-        break;
-      }
-      case "ThreeOfAKind": {
-        score = Object.values(valueCounts).some((count) => count >= 3) ? values.reduce((acc, value) => acc + value, 0) : 0;
-        break;
-      }
-      case "FourOfAKind": {
-        score = Object.values(valueCounts).some((count) => count >= 4) ? values.reduce((acc, value) => acc + value, 0) : 0;
-        break;
-      }
-      case "SmallStraight": {
-        const smallStrSeq = ["1234", "2345", "3456"];
-        const sortedUniqueValues = [...new Set(values)].sort().join("");
-        score = smallStrSeq.some((seq) => sortedUniqueValues.includes(seq)) ? 30 : 0;
-        break;
-      }
-      case "LargeStraight": {
-        const largeStrSeq = ["12345", "23456"];
-        const sortedUniqueVal = [...new Set(values)].sort().join("");
-        score = largeStrSeq.includes(sortedUniqueVal) ? 40 : 0;
-        break;
-      }
-      case "YAHTZEE": {
-        score = Object.values(valueCounts).some((count) => count === 5) ? 50 : 0;
-        break;
-      }
-    }
+    const score = this.calculateScore(categoryName, values);
     category.score = score;
     category.used = true;
-    category.textObject.setStyle({ color: "#808080" });
-    category.textObject.setText(`${category.label} (Used)`);
+    if (category.textObject) {
+      category.textObject.setStyle({ color: "#808080" });
+      category.textObject.setText(`${category.label} (Used)`);
+    }
     this.scoreText.setText(`Score for ${category.label}: ${score}`);
   }
   updateRollsLeftText() {
