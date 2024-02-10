@@ -16789,7 +16789,7 @@ var require_phaser = __commonJS((exports, module) => {
           var HasValue = __webpack_require__2(19256);
           var IsPlainObject = __webpack_require__2(42911);
           var Range = __webpack_require__2(75757);
-          var Set = __webpack_require__2(58403);
+          var Set2 = __webpack_require__2(58403);
           var Sprite = __webpack_require__2(13747);
           var Group = new Class({
             Extends: EventEmitter,
@@ -16809,7 +16809,7 @@ var require_phaser = __commonJS((exports, module) => {
                 children = null;
               }
               this.scene = scene;
-              this.children = new Set;
+              this.children = new Set2;
               this.isParent = true;
               this.type = "Group";
               this.classType = GetFastValue(config, "classType", Sprite);
@@ -45468,7 +45468,7 @@ var require_phaser = __commonJS((exports, module) => {
           var body1OnLeft;
           var body2OnLeft;
           var overlap;
-          var Set = function(b1, b2, ov) {
+          var Set2 = function(b1, b2, ov) {
             body1 = b1;
             body2 = b2;
             var v1 = body1.velocity.x;
@@ -45632,7 +45632,7 @@ var require_phaser = __commonJS((exports, module) => {
           module2.exports = {
             BlockCheck,
             Check,
-            Set,
+            Set: Set2,
             Run,
             RunImmovableBody1,
             RunImmovableBody2
@@ -45656,7 +45656,7 @@ var require_phaser = __commonJS((exports, module) => {
           var body1OnTop;
           var body2OnTop;
           var overlap;
-          var Set = function(b1, b2, ov) {
+          var Set2 = function(b1, b2, ov) {
             body1 = b1;
             body2 = b2;
             var v1 = body1.velocity.y;
@@ -45820,7 +45820,7 @@ var require_phaser = __commonJS((exports, module) => {
           module2.exports = {
             BlockCheck,
             Check,
-            Set,
+            Set: Set2,
             Run,
             RunImmovableBody1,
             RunImmovableBody2
@@ -46284,7 +46284,7 @@ var require_phaser = __commonJS((exports, module) => {
           var SeparateTile = __webpack_require__2(27354);
           var SeparateX = __webpack_require__2(61777);
           var SeparateY = __webpack_require__2(25299);
-          var Set = __webpack_require__2(58403);
+          var Set2 = __webpack_require__2(58403);
           var StaticBody = __webpack_require__2(66634);
           var TileIntersectsBody = __webpack_require__2(28808);
           var TransformMatrix = __webpack_require__2(69360);
@@ -46295,9 +46295,9 @@ var require_phaser = __commonJS((exports, module) => {
             initialize: function World(scene, config) {
               EventEmitter.call(this);
               this.scene = scene;
-              this.bodies = new Set;
-              this.staticBodies = new Set;
-              this.pendingDestroy = new Set;
+              this.bodies = new Set2;
+              this.staticBodies = new Set2;
+              this.pendingDestroy = new Set2;
               this.colliders = new ProcessQueue;
               this.gravity = new Vector2(GetValue(config, "gravity.x", 0), GetValue(config, "gravity.y", 0));
               this.bounds = new Rectangle(GetValue(config, "x", 0), GetValue(config, "y", 0), GetValue(config, "width", scene.sys.scale.width), GetValue(config, "height", scene.sys.scale.height));
@@ -66938,7 +66938,7 @@ var require_phaser = __commonJS((exports, module) => {
         },
         58403: (module2, __unused_webpack_exports, __webpack_require__2) => {
           var Class = __webpack_require__2(56694);
-          var Set = new Class({
+          var Set2 = new Class({
             initialize: function Set(elements) {
               this.entries = [];
               if (Array.isArray(elements)) {
@@ -67037,7 +67037,7 @@ var require_phaser = __commonJS((exports, module) => {
               return this.entries.indexOf(value) > -1;
             },
             union: function(set) {
-              var newSet = new Set;
+              var newSet = new Set2;
               set.entries.forEach(function(value) {
                 newSet.set(value);
               });
@@ -67047,7 +67047,7 @@ var require_phaser = __commonJS((exports, module) => {
               return newSet;
             },
             intersect: function(set) {
-              var newSet = new Set;
+              var newSet = new Set2;
               this.entries.forEach(function(value) {
                 if (set.contains(value)) {
                   newSet.set(value);
@@ -67056,7 +67056,7 @@ var require_phaser = __commonJS((exports, module) => {
               return newSet;
             },
             difference: function(set) {
-              var newSet = new Set;
+              var newSet = new Set2;
               this.entries.forEach(function(value) {
                 if (!set.contains(value)) {
                   newSet.set(value);
@@ -67077,7 +67077,7 @@ var require_phaser = __commonJS((exports, module) => {
               }
             }
           });
-          module2.exports = Set;
+          module2.exports = Set2;
         },
         90881: (module2, __unused_webpack_exports, __webpack_require__2) => {
           var Clamp = __webpack_require__2(82897);
@@ -78937,7 +78937,12 @@ class YahtzeeGame extends import_phaser.default.Scene {
     Fives: { label: "Fives", score: 0, used: false },
     Sixes: { label: "Sixes", score: 0, used: false },
     FullHouse: { label: "Full House", score: 0, used: false },
-    Chance: { label: "Chance", score: 0, used: false }
+    Chance: { label: "Chance", score: 0, used: false },
+    ThreeOfAKind: { label: "Three of a Kind", score: 0, used: false },
+    FourOfAKind: { label: "Four of a Kind", score: 0, used: false },
+    SmallStraight: { label: "Small Straight", score: 0, used: false },
+    LargeStraight: { label: "Large Straight", score: 0, used: false },
+    YAHTZEE: { label: "YAHTZEE", score: 0, used: false }
   };
   constructor() {
     super("YahtzeeGame");
@@ -78974,8 +78979,8 @@ class YahtzeeGame extends import_phaser.default.Scene {
       this.dice.push(dice);
     }
     this.rollButton = this.add.text(400, 500, "Roll Dice", { fontSize: "32px" }).setInteractive().on("pointerdown", () => this.rollDice());
-    Object.entries(this.categories).forEach(([category, { label, used, score }], index) => {
-      this.add.text(400, 550 + 30 * index, label, {
+    Object.entries(this.categories).forEach(([category, { label, used }], index) => {
+      this.categories[category].textObject = this.add.text(400, 550 + 30 * index, label, {
         fontSize: "24px",
         color: "#FFF"
       }).setInteractive().on("pointerdown", () => this.selectCategory(category));
@@ -79000,6 +79005,10 @@ class YahtzeeGame extends import_phaser.default.Scene {
       return;
     let score = 0;
     const values = this.dice.map((dice) => dice.getData("value"));
+    const counts = values.reduce((acc, value) => {
+      acc[value] = (acc[value] || 0) + 1;
+      return acc;
+    }, {});
     const categoryValues = {
       Ones: 1,
       Twos: 2,
@@ -79014,24 +79023,53 @@ class YahtzeeGame extends import_phaser.default.Scene {
       case "Threes":
       case "Fours":
       case "Fives":
-      case "Sixes":
+      case "Sixes": {
         const categoryValue = categoryValues[categoryName];
         score = values.filter((value) => value === categoryValue).reduce((acc, value) => acc + value, 0);
         break;
-      case "FullHouse":
-        const counts = values.reduce((acc, value) => {
+      }
+      case "FullHouse": {
+        const counts2 = values.reduce((acc, value) => {
           acc[value] = (acc[value] || 0) + 1;
           return acc;
         }, {});
-        const isFullHouse = Object.values(counts).sort().join("") === "23";
+        const isFullHouse = Object.values(counts2).sort().join("") === "23";
         score = isFullHouse ? 25 : 0;
         break;
-      case "Chance":
+      }
+      case "Chance": {
         score = values.reduce((acc, value) => acc + value, 0);
         break;
+      }
+      case "ThreeOfAKind": {
+        score = Object.values(counts).some((count) => count >= 3) ? values.reduce((acc, value) => acc + value, 0) : 0;
+        break;
+      }
+      case "FourOfAKind": {
+        score = Object.values(counts).some((count) => count >= 4) ? values.reduce((acc, value) => acc + value, 0) : 0;
+        break;
+      }
+      case "SmallStraight": {
+        const smallStrSeq = ["1234", "2345", "3456"];
+        const sortedUniqueValues = [...new Set(values)].sort().join("");
+        score = smallStrSeq.some((seq) => sortedUniqueValues.includes(seq)) ? 30 : 0;
+        break;
+      }
+      case "LargeStraight": {
+        const largeStrSeq = ["12345", "23456"];
+        const sortedUniqueVal = [...new Set(values)].sort().join("");
+        score = largeStrSeq.includes(sortedUniqueVal) ? 40 : 0;
+        break;
+      }
+      case "YAHTZEE": {
+        score = Object.values(counts).some((count) => count === 5) ? 50 : 0;
+        break;
+      }
     }
     category.score = score;
     category.used = true;
+    category.textObject.setStyle({ color: "#808080" });
+    category.textObject.setText(`${category.label} (Used)`);
     this.scoreText.setText(`Score for ${category.label}: ${score}`);
   }
   updateRollsLeftText() {

@@ -6,7 +6,12 @@ class YahtzeeGame extends Phaser.Scene {
     rollsLeft: number = 3
     scoreText!: Phaser.GameObjects.Text // Ensure it's initialized in create method
     categories: {
-        [key: string]: { label: string; score: number; used: boolean }
+        [key: string]: {
+            textObject?: any
+            label: string
+            score: number
+            used: boolean
+        }
     } = {
         Ones: { label: "Ones", score: 0, used: false },
         Twos: { label: "Twos", score: 0, used: false },
@@ -16,6 +21,11 @@ class YahtzeeGame extends Phaser.Scene {
         Sixes: { label: "Sixes", score: 0, used: false },
         FullHouse: { label: "Full House", score: 0, used: false },
         Chance: { label: "Chance", score: 0, used: false },
+        ThreeOfAKind: { label: "Three of a Kind", score: 0, used: false },
+        FourOfAKind: { label: "Four of a Kind", score: 0, used: false },
+        SmallStraight: { label: "Small Straight", score: 0, used: false },
+        LargeStraight: { label: "Large Straight", score: 0, used: false },
+        YAHTZEE: { label: "YAHTZEE", score: 0, used: false },
     }
 
     constructor() {
@@ -67,10 +77,10 @@ class YahtzeeGame extends Phaser.Scene {
             .setInteractive()
             .on("pointerdown", () => this.rollDice())
 
-        // Category selection setup...
         Object.entries(this.categories).forEach(
-            ([category, { label, used, score }], index) => {
-                this.add
+            ([category, { label, used }], index) => {
+                // Store the text object reference
+                this.categories[category].textObject = this.add
                     .text(400, 550 + 30 * index, label, {
                         fontSize: "24px",
                         color: "#FFF",
@@ -104,6 +114,11 @@ class YahtzeeGame extends Phaser.Scene {
         let score = 0
         const values = this.dice.map((dice) => dice.getData("value"))
 
+        const counts = values.reduce((acc, value) => {
+            acc[value] = (acc[value] || 0) + 1
+            return acc
+        }, {})
+
         // Map category names to their numeric values
         const categoryValues = {
             Ones: 1,
@@ -120,14 +135,15 @@ class YahtzeeGame extends Phaser.Scene {
             case "Threes":
             case "Fours":
             case "Fives":
-            case "Sixes":
+            case "Sixes": {
                 // Generalize scoring for numeric categories
                 const categoryValue = categoryValues[categoryName]
                 score = values
                     .filter((value) => value === categoryValue)
                     .reduce((acc, value) => acc + value, 0)
                 break
-            case "FullHouse":
+            }
+            case "FullHouse": {
                 const counts = values.reduce((acc, value) => {
                     acc[value] = (acc[value] || 0) + 1
                     return acc
@@ -136,14 +152,53 @@ class YahtzeeGame extends Phaser.Scene {
                     Object.values(counts).sort().join("") === "23"
                 score = isFullHouse ? 25 : 0
                 break
-            case "Chance":
+            }
+            case "Chance": {
                 score = values.reduce((acc, value) => acc + value, 0)
                 break
-            // Implement other categories...
+            }
+            case "ThreeOfAKind": {
+                score = Object.values(counts).some((count) => count >= 3)
+                    ? values.reduce((acc, value) => acc + value, 0)
+                    : 0
+                break
+            }
+            case "FourOfAKind": {
+                score = Object.values(counts).some((count) => count >= 4)
+                    ? values.reduce((acc, value) => acc + value, 0)
+                    : 0
+                break
+            }
+            case "SmallStraight": {
+                const smallStrSeq = ["1234", "2345", "3456"]
+                const sortedUniqueValues = [...new Set(values)].sort().join("")
+                score = smallStrSeq.some((seq) =>
+                    sortedUniqueValues.includes(seq),
+                )
+                    ? 30
+                    : 0
+                break
+            }
+            case "LargeStraight": {
+                const largeStrSeq = ["12345", "23456"]
+                const sortedUniqueVal = [...new Set(values)].sort().join("")
+                score = largeStrSeq.includes(sortedUniqueVal) ? 40 : 0
+                break
+            }
+            case "YAHTZEE": {
+                score = Object.values(counts).some((count) => count === 5)
+                    ? 50
+                    : 0
+                break
+            }
         }
 
         category.score = score
         category.used = true
+
+        category.textObject.setStyle({ color: "#808080" }) // Change color to indicate it's used
+        category.textObject.setText(`${category.label} (Used)`) // Append "(Used)" to the label
+
         this.scoreText.setText(`Score for ${category.label}: ${score}`)
     }
 
