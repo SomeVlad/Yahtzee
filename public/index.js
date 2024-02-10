@@ -78924,28 +78924,659 @@ var require_phaser = __commonJS((exports, module) => {
 // index.ts
 var import_phaser = __toESM(require_phaser(), 1);
 
+// node_modules/rambda/dist/rambda.js
+var curry = function(fn, args = []) {
+  return (..._args) => ((rest) => rest.length >= fn.length ? fn(...rest) : curry(fn, rest))([...args, ..._args]);
+};
+var adjustFn = function(index, replaceFn, list) {
+  const actualIndex = index < 0 ? list.length + index : index;
+  if (index >= list.length || actualIndex < 0)
+    return list;
+  const clone = cloneList(list);
+  clone[actualIndex] = replaceFn(clone[actualIndex]);
+  return clone;
+};
+var always = function(x) {
+  return (_) => x;
+};
+var assocFn = function(prop, newValue, obj) {
+  return Object.assign({}, obj, {
+    [prop]: newValue
+  });
+};
+var _isInteger = function(n) {
+  return n << 0 === n;
+};
+var createPath = function(path, delimiter = ".") {
+  return typeof path === "string" ? path.split(delimiter).map((x) => isInteger(x) ? Number(x) : x) : path;
+};
+var assocPathFn = function(path, newValue, input) {
+  const pathArrValue = createPath(path);
+  if (pathArrValue.length === 0)
+    return newValue;
+  const index = pathArrValue[0];
+  if (pathArrValue.length > 1) {
+    const condition = typeof input !== "object" || input === null || !input.hasOwnProperty(index);
+    const nextInput = condition ? isIndexInteger(pathArrValue[1]) ? [] : {} : input[index];
+    newValue = assocPathFn(Array.prototype.slice.call(pathArrValue, 1), newValue, nextInput);
+  }
+  if (isIndexInteger(index) && isArray(input)) {
+    const arr = cloneList(input);
+    arr[index] = newValue;
+    return arr;
+  }
+  return assocFn(index, newValue, input);
+};
+var clampFn = function(min, max, input) {
+  if (min > max) {
+    throw new Error("min must not be greater than max in clamp(min, max, value)");
+  }
+  if (input >= min && input <= max)
+    return input;
+  if (input > max)
+    return max;
+  if (input < min)
+    return min;
+};
+var clone = function(input) {
+  const out = isArray(input) ? Array(input.length) : {};
+  if (input && input.getTime)
+    return new Date(input.getTime());
+  for (const key in input) {
+    const v = input[key];
+    out[key] = typeof v === "object" && v !== null ? v.getTime ? new Date(v.getTime()) : clone(v) : v;
+  }
+  return out;
+};
+var reduceFn = function(reducer, acc, list) {
+  if (list == null) {
+    return acc;
+  }
+  if (!isArray(list)) {
+    throw new TypeError("reduce: list must be array or iterable");
+  }
+  let index = 0;
+  const len = list.length;
+  while (index < len) {
+    acc = reducer(acc, list[index], index, list);
+    if (acc instanceof ReduceStopper) {
+      return acc.value;
+    }
+    index++;
+  }
+  return acc;
+};
+var isFalsy = function(input) {
+  return input === undefined || input === null || Number.isNaN(input) === true;
+};
+var defaultTo = function(defaultArgument, input) {
+  if (arguments.length === 1) {
+    return (_input) => defaultTo(defaultArgument, _input);
+  }
+  return isFalsy(input) ? defaultArgument : input;
+};
+var type = function(input) {
+  if (input === null) {
+    return "Null";
+  } else if (input === undefined) {
+    return "Undefined";
+  } else if (Number.isNaN(input)) {
+    return "NaN";
+  }
+  const typeResult = Object.prototype.toString.call(input).slice(8, -1);
+  return typeResult === "AsyncFunction" ? "Promise" : typeResult;
+};
+var _indexOf = function(valueToFind, list) {
+  if (!isArray(list))
+    throw new Error(`Cannot read property 'indexOf' of ${list}`);
+  const typeOfValue = type(valueToFind);
+  if (!["Array", "NaN", "Object", "RegExp"].includes(typeOfValue))
+    return list.indexOf(valueToFind);
+  let index = -1;
+  let foundIndex = -1;
+  const {
+    length
+  } = list;
+  while (++index < length && foundIndex === -1)
+    if (equals(list[index], valueToFind))
+      foundIndex = index;
+  return foundIndex;
+};
+var _arrayFromIterator = function(iter) {
+  const list = [];
+  let next;
+  while (!(next = iter.next()).done)
+    list.push(next.value);
+  return list;
+};
+var _compareSets = function(a, b) {
+  if (a.size !== b.size)
+    return false;
+  const aList = _arrayFromIterator(a.values());
+  const bList = _arrayFromIterator(b.values());
+  const filtered = aList.filter((aInstance) => _indexOf(aInstance, bList) === -1);
+  return filtered.length === 0;
+};
+var compareErrors = function(a, b) {
+  if (a.message !== b.message)
+    return false;
+  if (a.toString !== b.toString)
+    return false;
+  return a.toString() === b.toString();
+};
+var parseDate = function(maybeDate) {
+  if (!maybeDate.toDateString)
+    return [false];
+  return [true, maybeDate.getTime()];
+};
+var parseRegex = function(maybeRegex) {
+  if (maybeRegex.constructor !== RegExp)
+    return [false];
+  return [true, maybeRegex.toString()];
+};
+var equals = function(a, b) {
+  if (arguments.length === 1)
+    return (_b) => equals(a, _b);
+  const aType = type(a);
+  if (aType !== type(b))
+    return false;
+  if (aType === "Function")
+    return a.name === undefined ? false : a.name === b.name;
+  if (["NaN", "Null", "Undefined"].includes(aType))
+    return true;
+  if (["BigInt", "Number"].includes(aType)) {
+    if (Object.is(-0, a) !== Object.is(-0, b))
+      return false;
+    return a.toString() === b.toString();
+  }
+  if (["Boolean", "String"].includes(aType))
+    return a.toString() === b.toString();
+  if (aType === "Array") {
+    const aClone = Array.from(a);
+    const bClone = Array.from(b);
+    if (aClone.toString() !== bClone.toString())
+      return false;
+    let loopArrayFlag = true;
+    aClone.forEach((aCloneInstance, aCloneIndex) => {
+      if (loopArrayFlag) {
+        if (aCloneInstance !== bClone[aCloneIndex] && !equals(aCloneInstance, bClone[aCloneIndex]))
+          loopArrayFlag = false;
+      }
+    });
+    return loopArrayFlag;
+  }
+  const aRegex = parseRegex(a);
+  const bRegex = parseRegex(b);
+  if (aRegex[0])
+    return bRegex[0] ? aRegex[1] === bRegex[1] : false;
+  else if (bRegex[0])
+    return false;
+  const aDate = parseDate(a);
+  const bDate = parseDate(b);
+  if (aDate[0])
+    return bDate[0] ? aDate[1] === bDate[1] : false;
+  else if (bDate[0])
+    return false;
+  if (a instanceof Error) {
+    if (!(b instanceof Error))
+      return false;
+    return compareErrors(a, b);
+  }
+  if (aType === "Set")
+    return _compareSets(a, b);
+  if (aType === "Object") {
+    const aKeys = Object.keys(a);
+    if (aKeys.length !== Object.keys(b).length)
+      return false;
+    let loopObjectFlag = true;
+    aKeys.forEach((aKeyInstance) => {
+      if (loopObjectFlag) {
+        const aValue = a[aKeyInstance];
+        const bValue = b[aKeyInstance];
+        if (aValue !== bValue && !equals(aValue, bValue))
+          loopObjectFlag = false;
+      }
+    });
+    return loopObjectFlag;
+  }
+  return false;
+};
+var differenceWithFn = function(fn, a, b) {
+  const willReturn = [];
+  const [first, second] = a.length > b.length ? [a, b] : [b, a];
+  first.forEach((item) => {
+    const hasItem = second.some((secondItem) => fn(item, secondItem));
+    if (!hasItem && _indexOf(item, willReturn) === -1) {
+      willReturn.push(item);
+    }
+  });
+  return willReturn;
+};
+var ownKeys = function(e, r) {
+  var t = Object.keys(e);
+  if (Object.getOwnPropertySymbols) {
+    var o = Object.getOwnPropertySymbols(e);
+    r && (o = o.filter(function(r2) {
+      return Object.getOwnPropertyDescriptor(e, r2).enumerable;
+    })), t.push.apply(t, o);
+  }
+  return t;
+};
+var _objectSpread2 = function(e) {
+  for (var r = 1;r < arguments.length; r++) {
+    var t = arguments[r] != null ? arguments[r] : {};
+    r % 2 ? ownKeys(Object(t), true).forEach(function(r2) {
+      _defineProperty(e, r2, t[r2]);
+    }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function(r2) {
+      Object.defineProperty(e, r2, Object.getOwnPropertyDescriptor(t, r2));
+    });
+  }
+  return e;
+};
+var _defineProperty = function(obj, key, value) {
+  key = _toPropertyKey(key);
+  if (key in obj) {
+    Object.defineProperty(obj, key, {
+      value,
+      enumerable: true,
+      configurable: true,
+      writable: true
+    });
+  } else {
+    obj[key] = value;
+  }
+  return obj;
+};
+var _toPrimitive = function(input, hint) {
+  if (typeof input !== "object" || input === null)
+    return input;
+  var prim = input[Symbol.toPrimitive];
+  if (prim !== undefined) {
+    var res = prim.call(input, hint || "default");
+    if (typeof res !== "object")
+      return res;
+    throw new TypeError("@@toPrimitive must return a primitive value.");
+  }
+  return (hint === "string" ? String : Number)(input);
+};
+var _toPropertyKey = function(arg) {
+  var key = _toPrimitive(arg, "string");
+  return typeof key === "symbol" ? key : String(key);
+};
+var pathFn = function(pathInput, obj) {
+  let willReturn = obj;
+  let counter = 0;
+  const pathArrValue = createPath(pathInput);
+  while (counter < pathArrValue.length) {
+    if (willReturn === null || willReturn === undefined) {
+      return;
+    }
+    if (willReturn[pathArrValue[counter]] === null)
+      return;
+    willReturn = willReturn[pathArrValue[counter]];
+    counter++;
+  }
+  return willReturn;
+};
+var path = function(pathInput, obj) {
+  if (arguments.length === 1)
+    return (_obj) => path(pathInput, _obj);
+  if (obj === null || obj === undefined) {
+    return;
+  }
+  return pathFn(pathInput, obj);
+};
+var updateFn = function(index, newValue, list) {
+  const clone2 = cloneList(list);
+  if (index === -1)
+    return clone2.fill(newValue, index);
+  return clone2.fill(newValue, index, index + 1);
+};
+var eqByFn = function(fn, a, b) {
+  return equals(fn(a), fn(b));
+};
+var propFn = function(searchProperty, obj) {
+  if (!obj)
+    return;
+  return obj[searchProperty];
+};
+var prop = function(searchProperty, obj) {
+  if (arguments.length === 1)
+    return (_obj) => prop(searchProperty, _obj);
+  return propFn(searchProperty, obj);
+};
+var eqPropsFn = function(property, objA, objB) {
+  return equals(prop(property, objA), prop(property, objB));
+};
+var has = function(prop2, obj) {
+  if (arguments.length === 1)
+    return (_obj) => has(prop2, _obj);
+  if (!obj)
+    return false;
+  return obj.hasOwnProperty(prop2);
+};
+var ifElseFn = function(condition, onTrue, onFalse) {
+  return (...input) => {
+    const conditionResult = typeof condition === "boolean" ? condition : condition(...input);
+    if (conditionResult === true) {
+      return onTrue(...input);
+    }
+    return onFalse(...input);
+  };
+};
+var baseSlice = function(array, start, end) {
+  let index = -1;
+  let {
+    length
+  } = array;
+  end = end > length ? length : end;
+  if (end < 0) {
+    end += length;
+  }
+  length = start > end ? 0 : end - start >>> 0;
+  start >>>= 0;
+  const result = Array(length);
+  while (++index < length) {
+    result[index] = array[index + start];
+  }
+  return result;
+};
+var _includesWith = function(pred, x, list) {
+  let idx = 0;
+  const len = list.length;
+  while (idx < len) {
+    if (pred(x, list[idx]))
+      return true;
+    idx += 1;
+  }
+  return false;
+};
+var _filter = function(fn, list) {
+  let idx = 0;
+  const len = list.length;
+  const result = [];
+  while (idx < len) {
+    if (fn(list[idx]))
+      result[result.length] = list[idx];
+    idx += 1;
+  }
+  return result;
+};
+var innerJoinFn = function(pred, xs, ys) {
+  return _filter((x) => _includesWith(pred, x, ys), xs);
+};
+var insertFn = function(indexToInsert, valueToInsert, array) {
+  return [...array.slice(0, indexToInsert), valueToInsert, ...array.slice(indexToInsert)];
+};
+var insertAllFn = function(index, listToInsert, list) {
+  return [...list.slice(0, index), ...listToInsert, ...list.slice(index)];
+};
+var is = function(targetPrototype, x) {
+  if (arguments.length === 1)
+    return (_x) => is(targetPrototype, _x);
+  return x != null && x.constructor === targetPrototype || x instanceof targetPrototype;
+};
+var maxByFn = function(compareFn, x, y) {
+  return compareFn(y) > compareFn(x) ? y : x;
+};
+var mergeWithFn = function(mergeFn, aInput, bInput) {
+  const a = aInput !== null && aInput !== undefined ? aInput : {};
+  const b = bInput !== null && bInput !== undefined ? bInput : {};
+  const willReturn = {};
+  Object.keys(a).forEach((key) => {
+    if (b[key] === undefined)
+      willReturn[key] = a[key];
+    else
+      willReturn[key] = mergeFn(a[key], b[key]);
+  });
+  Object.keys(b).forEach((key) => {
+    if (willReturn[key] !== undefined)
+      return;
+    if (a[key] === undefined)
+      willReturn[key] = b[key];
+    else
+      willReturn[key] = mergeFn(a[key], b[key]);
+  });
+  return willReturn;
+};
+var minByFn = function(compareFn, x, y) {
+  return compareFn(y) < compareFn(x) ? y : x;
+};
+var isIterable = function(input) {
+  return Array.isArray(input) || type(input) === "Object";
+};
+var modifyFn = function(property, fn, iterable) {
+  if (!isIterable(iterable))
+    return iterable;
+  if (iterable[property] === undefined)
+    return iterable;
+  if (isArray(iterable)) {
+    return updateFn(property, fn(iterable[property]), iterable);
+  }
+  return _objectSpread2(_objectSpread2({}, iterable), {}, {
+    [property]: fn(iterable[property])
+  });
+};
+var modifyPathFn = function(pathInput, fn, object) {
+  const path$1 = createPath(pathInput);
+  if (path$1.length === 1) {
+    return _objectSpread2(_objectSpread2({}, object), {}, {
+      [path$1[0]]: fn(object[path$1[0]])
+    });
+  }
+  if (path(path$1, object) === undefined)
+    return object;
+  const val = modifyPath(Array.prototype.slice.call(path$1, 1), fn, object[path$1[0]]);
+  if (val === object[path$1[0]]) {
+    return object;
+  }
+  return assoc(path$1[0], val, object);
+};
+var moveFn = function(fromIndex, toIndex, list) {
+  if (fromIndex < 0 || toIndex < 0) {
+    throw new Error("Rambda.move does not support negative indexes");
+  }
+  if (fromIndex > list.length - 1 || toIndex > list.length - 1)
+    return list;
+  const clone2 = cloneList(list);
+  clone2[fromIndex] = list[toIndex];
+  clone2[toIndex] = list[fromIndex];
+  return clone2;
+};
+var multiply = function(x, y) {
+  if (arguments.length === 1)
+    return (_y) => multiply(x, _y);
+  return x * y;
+};
+var overFn = function(lens, fn, object) {
+  return lens((x) => Identity(fn(x)))(object).x;
+};
+var pathEqFn = function(pathToSearch, target, input) {
+  return equals(path(pathToSearch, input), target);
+};
+var pathOrFn = function(defaultValue, pathInput, obj) {
+  return defaultTo(defaultValue, path(pathInput, obj));
+};
+var pathSatisfiesFn = function(fn, pathInput, obj) {
+  if (pathInput.length === 0)
+    throw new Error("R.pathSatisfies received an empty path");
+  return Boolean(fn(path(pathInput, obj)));
+};
+var propEqFn = function(valueToMatch, propToFind, obj) {
+  if (!obj)
+    return false;
+  return equals(valueToMatch, prop(propToFind, obj));
+};
+var propIsFn = function(targetPrototype, property, obj) {
+  return is(targetPrototype, obj[property]);
+};
+var propOrFn = function(defaultValue, property, obj) {
+  if (!obj)
+    return defaultValue;
+  return defaultTo(defaultValue, obj[property]);
+};
+var propSatisfiesFn = function(predicate, property, obj) {
+  return predicate(prop(property, obj));
+};
+var reduceByFunction = function(valueFn, valueAcc, keyFn, acc, elt) {
+  const key = keyFn(elt);
+  const value = valueFn(has(key, acc) ? acc[key] : clone(valueAcc), elt);
+  acc[key] = value;
+  return acc;
+};
+var reduceByFn = function(valueFn, valueAcc, keyFn, list) {
+  return reduce((acc, elt) => reduceByFunction(valueFn, valueAcc, keyFn, acc, elt), {}, list);
+};
+var replaceFn = function(pattern, replacer, str) {
+  return str.replace(pattern, replacer);
+};
+var setFn = function(lens, replacer, x) {
+  return over(lens, always(replacer), x);
+};
+var sliceFn = function(from, to, list) {
+  return list.slice(from, to);
+};
+var take = function(howMany, listOrString) {
+  if (arguments.length === 1)
+    return (_listOrString) => take(howMany, _listOrString);
+  if (howMany < 0)
+    return listOrString.slice();
+  if (typeof listOrString === "string")
+    return listOrString.slice(0, howMany);
+  return baseSlice(listOrString, 0, howMany);
+};
+var swapArrayOrString = function(indexA, indexB, iterable) {
+  const actualIndexA = indexA < 0 ? iterable.length + indexA : indexA;
+  const actualIndexB = indexB < 0 ? iterable.length + indexB : indexB;
+  if (actualIndexA === actualIndexB || Math.min(actualIndexA, actualIndexB) < 0 || Math.max(actualIndexA, actualIndexB) >= iterable.length)
+    return iterable;
+  if (typeof iterable === "string") {
+    return iterable.slice(0, actualIndexA) + iterable[actualIndexB] + iterable.slice(actualIndexA + 1, actualIndexB) + iterable[actualIndexA] + iterable.slice(actualIndexB + 1);
+  }
+  const clone2 = iterable.slice();
+  const temp = clone2[actualIndexA];
+  clone2[actualIndexA] = clone2[actualIndexB];
+  clone2[actualIndexB] = temp;
+  return clone2;
+};
+var swapFn = function(indexA, indexB, iterable) {
+  if (isArray(iterable) || typeof iterable === "string")
+    return swapArrayOrString(indexA, indexB, iterable);
+  const aVal = iterable[indexA];
+  const bVal = iterable[indexB];
+  if (aVal === undefined || bVal === undefined)
+    return iterable;
+  return _objectSpread2(_objectSpread2({}, iterable), {}, {
+    [indexA]: iterable[indexB],
+    [indexB]: iterable[indexA]
+  });
+};
+var toPairs = function(obj) {
+  return Object.entries(obj);
+};
+var whenFn = function(predicate, whenTrueFn, input) {
+  if (!predicate(input))
+    return input;
+  return whenTrueFn(input);
+};
+var zipWithFn = function(fn, x, y) {
+  return take(x.length > y.length ? y.length : x.length, x).map((xInstance, i) => fn(xInstance, y[i]));
+};
+var cloneList = (list) => Array.prototype.slice.call(list);
+var adjust = curry(adjustFn);
+var {
+  isArray
+} = Array;
+var assoc = curry(assocFn);
+var isInteger = Number.isInteger || _isInteger;
+var isIndexInteger = (index) => Number.isInteger(Number(index));
+var assocPath = curry(assocPathFn);
+var clamp = curry(clampFn);
+
+class ReduceStopper {
+  constructor(value) {
+    this.value = value;
+  }
+}
+var reduce = curry(reduceFn);
+var differenceWith = curry(differenceWithFn);
+var update = curry(updateFn);
+var eqBy = curry(eqByFn);
+var eqProps = curry(eqPropsFn);
+var ifElse = curry(ifElseFn);
+var innerJoin = curry(innerJoinFn);
+var insert = curry(insertFn);
+var insertAll = curry(insertAllFn);
+var maxBy = curry(maxByFn);
+var mergeWith = curry(mergeWithFn);
+var minBy = curry(minByFn);
+var modify = curry(modifyFn);
+var modifyPath = curry(modifyPathFn);
+var move = curry(moveFn);
+var Identity = (x) => ({
+  x,
+  map: (fn) => Identity(fn(x))
+});
+var over = curry(overFn);
+var pathEq = curry(pathEqFn);
+var pathOr = curry(pathOrFn);
+var pathSatisfies = curry(pathSatisfiesFn);
+var product = reduce(multiply, 1);
+var propEq = curry(propEqFn);
+var propIs = curry(propIsFn);
+var propOr = curry(propOrFn);
+var propSatisfies = curry(propSatisfiesFn);
+var reduceBy = curry(reduceByFn);
+var replace = curry(replaceFn);
+var set = curry(setFn);
+var slice = curry(sliceFn);
+var swap = curry(swapFn);
+var when = curry(whenFn);
+var zipWith = curry(zipWithFn);
+var $reduce = reduce;
+var $toPairs = toPairs;
+
+// index.ts
+var createCategories = function() {
+  const dict = {};
+  $toPairs(CategoryLabelsByName).forEach(([name, label]) => {
+    dict[name] = {
+      label,
+      score: 0,
+      used: false,
+      textObject: {}
+    };
+  }, {});
+  return dict;
+};
+var CategoryLabelsByName = {
+  Ones: "Ones",
+  Twos: "Twos",
+  Threes: "Threes",
+  Fours: "Fours",
+  Fives: "Fives",
+  Sixes: "Sixes",
+  FullHouse: "Full House",
+  Chance: "Chance",
+  ThreeOfAKind: "Three of a Kind",
+  FourOfAKind: "Four of a Kind",
+  SmallStraight: "Small Straight",
+  LargeStraight: "Large Straight",
+  YAHTZEE: "YAHTZEE"
+};
+
 class YahtzeeGame extends import_phaser.default.Scene {
   dice = [];
   rollButton;
   rollsLeft = 3;
   scoreText;
-  categories = {
-    Ones: { label: "Ones", score: 0, used: false },
-    Twos: { label: "Twos", score: 0, used: false },
-    Threes: { label: "Threes", score: 0, used: false },
-    Fours: { label: "Fours", score: 0, used: false },
-    Fives: { label: "Fives", score: 0, used: false },
-    Sixes: { label: "Sixes", score: 0, used: false },
-    FullHouse: { label: "Full House", score: 0, used: false },
-    Chance: { label: "Chance", score: 0, used: false },
-    ThreeOfAKind: { label: "Three of a Kind", score: 0, used: false },
-    FourOfAKind: { label: "Four of a Kind", score: 0, used: false },
-    SmallStraight: { label: "Small Straight", score: 0, used: false },
-    LargeStraight: { label: "Large Straight", score: 0, used: false },
-    YAHTZEE: { label: "YAHTZEE", score: 0, used: false }
-  };
+  categories;
   constructor() {
     super("YahtzeeGame");
+    this.categories = createCategories();
+  }
+  calculateScoreForNumericCategories(values, categoryValue) {
+    return values.filter((value) => value === categoryValue).reduce((acc, value) => acc + value, 0);
   }
   preload() {
     this.load.image("dice1", "assets/dice1.png");
@@ -78979,7 +79610,7 @@ class YahtzeeGame extends import_phaser.default.Scene {
       this.dice.push(dice);
     }
     this.rollButton = this.add.text(400, 500, "Roll Dice", { fontSize: "32px" }).setInteractive().on("pointerdown", () => this.rollDice());
-    Object.entries(this.categories).forEach(([category, { label, used }], index) => {
+    $toPairs(this.categories).forEach(([category, { label, used }], index) => {
       this.categories[category].textObject = this.add.text(400, 550 + 30 * index, label, {
         fontSize: "24px",
         color: "#FFF"
@@ -79005,10 +79636,10 @@ class YahtzeeGame extends import_phaser.default.Scene {
       return;
     let score = 0;
     const values = this.dice.map((dice) => dice.getData("value"));
-    const counts = values.reduce((acc, value) => {
+    const valueCounts = $reduce((acc, value) => {
       acc[value] = (acc[value] || 0) + 1;
       return acc;
-    }, {});
+    }, {}, values);
     const categoryValues = {
       Ones: 1,
       Twos: 2,
@@ -79025,15 +79656,15 @@ class YahtzeeGame extends import_phaser.default.Scene {
       case "Fives":
       case "Sixes": {
         const categoryValue = categoryValues[categoryName];
-        score = values.filter((value) => value === categoryValue).reduce((acc, value) => acc + value, 0);
+        score = this.calculateScoreForNumericCategories(values, categoryValue);
         break;
       }
       case "FullHouse": {
-        const counts2 = values.reduce((acc, value) => {
+        const counts = $reduce((acc, value) => {
           acc[value] = (acc[value] || 0) + 1;
           return acc;
-        }, {});
-        const isFullHouse = Object.values(counts2).sort().join("") === "23";
+        }, {}, values);
+        const isFullHouse = Object.values(counts).sort().join("") === "23";
         score = isFullHouse ? 25 : 0;
         break;
       }
@@ -79042,11 +79673,11 @@ class YahtzeeGame extends import_phaser.default.Scene {
         break;
       }
       case "ThreeOfAKind": {
-        score = Object.values(counts).some((count) => count >= 3) ? values.reduce((acc, value) => acc + value, 0) : 0;
+        score = Object.values(valueCounts).some((count) => count >= 3) ? values.reduce((acc, value) => acc + value, 0) : 0;
         break;
       }
       case "FourOfAKind": {
-        score = Object.values(counts).some((count) => count >= 4) ? values.reduce((acc, value) => acc + value, 0) : 0;
+        score = Object.values(valueCounts).some((count) => count >= 4) ? values.reduce((acc, value) => acc + value, 0) : 0;
         break;
       }
       case "SmallStraight": {
@@ -79062,7 +79693,7 @@ class YahtzeeGame extends import_phaser.default.Scene {
         break;
       }
       case "YAHTZEE": {
-        score = Object.values(counts).some((count) => count === 5) ? 50 : 0;
+        score = Object.values(valueCounts).some((count) => count === 5) ? 50 : 0;
         break;
       }
     }

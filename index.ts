@@ -1,35 +1,80 @@
 import Phaser from "phaser"
+import { reduce, toPairs } from "rambda/immutable"
+
+type CategoryName =
+    | "Ones"
+    | "Twos"
+    | "Threes"
+    | "Fours"
+    | "Fives"
+    | "Sixes"
+    | "FullHouse"
+    | "Chance"
+    | "ThreeOfAKind"
+    | "FourOfAKind"
+    | "SmallStraight"
+    | "LargeStraight"
+    | "YAHTZEE"
+
+const CategoryLabelsByName: Record<CategoryName, string> = {
+    Ones: "Ones",
+    Twos: "Twos",
+    Threes: "Threes",
+    Fours: "Fours",
+    Fives: "Fives",
+    Sixes: "Sixes",
+    FullHouse: "Full House",
+    Chance: "Chance",
+    ThreeOfAKind: "Three of a Kind",
+    FourOfAKind: "Four of a Kind",
+    SmallStraight: "Small Straight",
+    LargeStraight: "Large Straight",
+    YAHTZEE: "YAHTZEE",
+}
+
+type Category = {
+    textObject: Phaser.GameObjects.Text
+    label: string
+    score: number
+    used: boolean
+}
+
+type CategoryDict = Record<CategoryName, Category>
+
+function createCategories(): CategoryDict {
+    const dict = {} as CategoryDict
+    toPairs(CategoryLabelsByName).forEach(([name, label]) => {
+        dict[name] = {
+            label,
+            score: 0,
+            used: false,
+            textObject: {} as Phaser.GameObjects.Text,
+        }
+    }, {})
+
+    return dict
+}
 
 class YahtzeeGame extends Phaser.Scene {
     dice: Phaser.GameObjects.Sprite[] = []
     rollButton!: Phaser.GameObjects.Text
     rollsLeft: number = 3
     scoreText!: Phaser.GameObjects.Text // Ensure it's initialized in create method
-    categories: {
-        [key: string]: {
-            textObject?: any
-            label: string
-            score: number
-            used: boolean
-        }
-    } = {
-        Ones: { label: "Ones", score: 0, used: false },
-        Twos: { label: "Twos", score: 0, used: false },
-        Threes: { label: "Threes", score: 0, used: false },
-        Fours: { label: "Fours", score: 0, used: false },
-        Fives: { label: "Fives", score: 0, used: false },
-        Sixes: { label: "Sixes", score: 0, used: false },
-        FullHouse: { label: "Full House", score: 0, used: false },
-        Chance: { label: "Chance", score: 0, used: false },
-        ThreeOfAKind: { label: "Three of a Kind", score: 0, used: false },
-        FourOfAKind: { label: "Four of a Kind", score: 0, used: false },
-        SmallStraight: { label: "Small Straight", score: 0, used: false },
-        LargeStraight: { label: "Large Straight", score: 0, used: false },
-        YAHTZEE: { label: "YAHTZEE", score: 0, used: false },
-    }
+    categories: CategoryDict
 
     constructor() {
         super("YahtzeeGame")
+
+        this.categories = createCategories()
+    }
+
+    private calculateScoreForNumericCategories(
+        values: number[],
+        categoryValue: number,
+    ): number {
+        return values
+            .filter((value) => value === categoryValue)
+            .reduce((acc, value) => acc + value, 0)
     }
 
     preload() {
@@ -77,7 +122,7 @@ class YahtzeeGame extends Phaser.Scene {
             .setInteractive()
             .on("pointerdown", () => this.rollDice())
 
-        Object.entries(this.categories).forEach(
+        toPairs(this.categories).forEach(
             ([category, { label, used }], index) => {
                 // Store the text object reference
                 this.categories[category].textObject = this.add
@@ -106,18 +151,22 @@ class YahtzeeGame extends Phaser.Scene {
         }
     }
 
-    selectCategory(categoryName: string) {
+    selectCategory(categoryName: CategoryName) {
         const category = this.categories[categoryName]
 
         if (category.used) return // Ignore if already used
 
         let score = 0
-        const values = this.dice.map((dice) => dice.getData("value"))
+        const values: number[] = this.dice.map((dice) => dice.getData("value"))
 
-        const counts = values.reduce((acc, value) => {
-            acc[value] = (acc[value] || 0) + 1
-            return acc
-        }, {})
+        const valueCounts = reduce(
+            (acc, value) => {
+                acc[value] = (acc[value] || 0) + 1
+                return acc
+            },
+            {} as { [key: number]: number },
+            values,
+        )
 
         // Map category names to their numeric values
         const categoryValues = {
@@ -138,16 +187,21 @@ class YahtzeeGame extends Phaser.Scene {
             case "Sixes": {
                 // Generalize scoring for numeric categories
                 const categoryValue = categoryValues[categoryName]
-                score = values
-                    .filter((value) => value === categoryValue)
-                    .reduce((acc, value) => acc + value, 0)
+                score = this.calculateScoreForNumericCategories(
+                    values,
+                    categoryValue,
+                )
                 break
             }
             case "FullHouse": {
-                const counts = values.reduce((acc, value) => {
-                    acc[value] = (acc[value] || 0) + 1
-                    return acc
-                }, {})
+                const counts = reduce(
+                    (acc, value) => {
+                        acc[value] = (acc[value] || 0) + 1
+                        return acc
+                    },
+                    {} as { [key: number]: number },
+                    values,
+                )
                 const isFullHouse =
                     Object.values(counts).sort().join("") === "23"
                 score = isFullHouse ? 25 : 0
@@ -158,13 +212,13 @@ class YahtzeeGame extends Phaser.Scene {
                 break
             }
             case "ThreeOfAKind": {
-                score = Object.values(counts).some((count) => count >= 3)
+                score = Object.values(valueCounts).some((count) => count >= 3)
                     ? values.reduce((acc, value) => acc + value, 0)
                     : 0
                 break
             }
             case "FourOfAKind": {
-                score = Object.values(counts).some((count) => count >= 4)
+                score = Object.values(valueCounts).some((count) => count >= 4)
                     ? values.reduce((acc, value) => acc + value, 0)
                     : 0
                 break
@@ -186,7 +240,7 @@ class YahtzeeGame extends Phaser.Scene {
                 break
             }
             case "YAHTZEE": {
-                score = Object.values(counts).some((count) => count === 5)
+                score = Object.values(valueCounts).some((count) => count === 5)
                     ? 50
                     : 0
                 break

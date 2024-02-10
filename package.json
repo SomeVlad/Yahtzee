@@ -12,6 +12,7 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "phaser": "^3.70.0"
+    "phaser": "^3.70.0",
+    "rambda": "^9.1.0"
   }
 }
