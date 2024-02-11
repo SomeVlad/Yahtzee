@@ -82,7 +82,6 @@ class YahtzeeGame extends Phaser.Scene {
                 .setInteractive()
             dice.setData("value", 1) // Initial value
             dice.setData("held", false) // Initialize held state
-            this.diceGroup.add(dice)
 
             let heldIndicator = this.add
                 .text(150 + i * 100, 150, "", {
@@ -90,6 +89,8 @@ class YahtzeeGame extends Phaser.Scene {
                     color: "#FFFFFF",
                 })
                 .setOrigin(0.5)
+            dice.setData("heldIndicator", heldIndicator)
+
             dice.on("pointerdown", () => {
                 if (this.rollsLeft > 0 && this.rollsLeft < 3) {
                     // Only allow holding if there are rolls left and after the first roll
@@ -99,7 +100,8 @@ class YahtzeeGame extends Phaser.Scene {
                     heldIndicator.setText(!isHeld ? "Held" : "")
                 }
             })
-            // this.dice.push(dice)
+
+            this.diceGroup.add(dice)
         }
     }
 

@@ -79661,11 +79661,11 @@ class YahtzeeGame extends import_phaser.default.Scene {
       const dice = this.add.sprite(150 + i * 100, 100, "dice1").setInteractive();
       dice.setData("value", 1);
       dice.setData("held", false);
-      this.diceGroup.add(dice);
       let heldIndicator = this.add.text(150 + i * 100, 150, "", {
         fontSize: "16px",
         color: "#FFFFFF"
       }).setOrigin(0.5);
+      dice.setData("heldIndicator", heldIndicator);
       dice.on("pointerdown", () => {
         if (this.rollsLeft > 0 && this.rollsLeft < 3) {
           let isHeld = dice.getData("held");
@@ -79674,6 +79674,7 @@ class YahtzeeGame extends import_phaser.default.Scene {
           heldIndicator.setText(!isHeld ? "Held" : "");
         }
       });
+      this.diceGroup.add(dice);
     }
   }
   initializeCategories() {
