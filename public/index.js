@@ -79643,6 +79643,7 @@ class YahtzeeGame extends import_phaser.default.Scene {
   categories = createCategories();
   isCombinationSelected = false;
   isDiceRolled = false;
+  diceGroup;
   constructor() {
     super("YahtzeeGame");
   }
@@ -79655,10 +79656,12 @@ class YahtzeeGame extends import_phaser.default.Scene {
     this.load.image("dice6", "assets/dice6.png");
   }
   initializeDice() {
+    this.diceGroup = this.add.group();
     for (let i = 0;i < 5; i++) {
       const dice = this.add.sprite(150 + i * 100, 100, "dice1").setInteractive();
       dice.setData("value", 1);
       dice.setData("held", false);
+      this.diceGroup.add(dice);
       let heldIndicator = this.add.text(150 + i * 100, 150, "", {
         fontSize: "16px",
         color: "#FFFFFF"
@@ -79671,7 +79674,6 @@ class YahtzeeGame extends import_phaser.default.Scene {
           heldIndicator.setText(!isHeld ? "Held" : "");
         }
       });
-      this.dice.push(dice);
     }
   }
   initializeCategories() {
@@ -79694,7 +79696,7 @@ class YahtzeeGame extends import_phaser.default.Scene {
   }
   rollDice() {
     if (this.rollsLeft > 0) {
-      this.dice.forEach((dice) => {
+      this.diceGroup.getChildren().forEach((dice) => {
         if (!dice.getData("held")) {
           let value = import_phaser.default.Math.Between(1, 6);
           dice.setTexture(`dice${value}`);
@@ -79744,7 +79746,7 @@ class YahtzeeGame extends import_phaser.default.Scene {
     const category = this.categories[categoryName];
     if (category.used)
       return;
-    const values = this.dice.map((dice) => dice.getData("value"));
+    const values = this.diceGroup.getChildren().map((dice) => dice.getData("value"));
     const score = this.calculateScore(categoryName, values);
     category.score = score;
     category.used = true;
@@ -79767,10 +79769,7 @@ class YahtzeeGame extends import_phaser.default.Scene {
     this.isCombinationSelected = false;
     this.isDiceRolled = false;
     this.rollsLeft = 3;
-    this.dice.forEach((dice) => {
-      dice.setData("held", false);
-      dice.setTint(16777215);
-    });
+    this.initializeDice();
     this.checkGameOver();
     this.updateRollsLeftText();
   }

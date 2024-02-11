@@ -58,6 +58,7 @@ class YahtzeeGame extends Phaser.Scene {
     categories: Record<CategoryName, Category> = createCategories()
     isCombinationSelected: boolean = false
     isDiceRolled: boolean = false
+    diceGroup!: Phaser.GameObjects.Group
 
     constructor() {
         super("YahtzeeGame")
@@ -73,12 +74,16 @@ class YahtzeeGame extends Phaser.Scene {
     }
 
     initializeDice() {
+        this.diceGroup = this.add.group()
+
         for (let i = 0; i < 5; i++) {
             const dice = this.add
                 .sprite(150 + i * 100, 100, "dice1")
                 .setInteractive()
             dice.setData("value", 1) // Initial value
             dice.setData("held", false) // Initialize held state
+            this.diceGroup.add(dice)
+
             let heldIndicator = this.add
                 .text(150 + i * 100, 150, "", {
                     fontSize: "16px",
@@ -94,7 +99,7 @@ class YahtzeeGame extends Phaser.Scene {
                     heldIndicator.setText(!isHeld ? "Held" : "")
                 }
             })
-            this.dice.push(dice)
+            // this.dice.push(dice)
         }
     }
 
@@ -131,7 +136,7 @@ class YahtzeeGame extends Phaser.Scene {
 
     rollDice() {
         if (this.rollsLeft > 0) {
-            this.dice.forEach((dice) => {
+            this.diceGroup.getChildren().forEach((dice) => {
                 if (!dice.getData("held")) {
                     // Roll and animate dice...
                     let value = Phaser.Math.Between(1, 6)
@@ -185,7 +190,9 @@ class YahtzeeGame extends Phaser.Scene {
 
         if (category.used) return // Ignore if already used
 
-        const values: number[] = this.dice.map((dice) => dice.getData("value"))
+        const values: number[] = this.diceGroup
+            .getChildren()
+            .map((dice) => dice.getData("value"))
         const score = this.calculateScore(categoryName, values)
 
         category.score = score
@@ -219,11 +226,14 @@ class YahtzeeGame extends Phaser.Scene {
         this.isDiceRolled = false
         this.rollsLeft = 3 // Reset the number of rolls for the next turn
 
-        // Reset dice state
-        this.dice.forEach((dice) => {
-            dice.setData("held", false) // Optionally release all held dice
-            dice.setTint(0xffffff) // Reset tint color
-        })
+        // // Reset dice state
+        // this.diceGroup.getChildren().forEach((dice) => {
+        //     dice.setData("held", false)
+        //     dice.setTint(0xffffff)
+        //     // dice.setTint(0xffffff) // Reset tint color
+        // })
+
+        this.initializeDice()
 
         // Check for game end condition here (e.g., all categories used)
         // If game over, handle accordingly
