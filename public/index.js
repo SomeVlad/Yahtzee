@@ -78921,7 +78921,7 @@ var require_phaser = __commonJS((exports, module) => {
   });
 });
 
-// index.ts
+// src/index.ts
 var import_phaser = __toESM(require_phaser(), 1);
 
 // node_modules/rambda/dist/rambda.js
@@ -79248,6 +79248,33 @@ var prop = function(searchProperty, obj) {
 var eqPropsFn = function(property, objA, objB) {
   return equals(prop(property, objA), prop(property, objB));
 };
+var forEachObjIndexedFn = function(fn, obj) {
+  let index = 0;
+  const listKeys = keys$1(obj);
+  const len = listKeys.length;
+  while (index < len) {
+    const key = listKeys[index];
+    fn(obj[key], key, obj);
+    index++;
+  }
+  return obj;
+};
+var forEach = function(fn, iterable) {
+  if (arguments.length === 1)
+    return (_list) => forEach(fn, _list);
+  if (iterable === undefined)
+    return;
+  if (isArray(iterable)) {
+    let index = 0;
+    const len = iterable.length;
+    while (index < len) {
+      fn(iterable[index]);
+      index++;
+    }
+  } else
+    return forEachObjIndexedFn(fn, iterable);
+  return iterable;
+};
 var has = function(prop2, obj) {
   if (arguments.length === 1)
     return (_obj) => has(prop2, _obj);
@@ -79499,6 +79526,9 @@ class ReduceStopper {
   }
 }
 var reduce = curry(reduceFn);
+var {
+  keys: keys$1
+} = Object;
 var differenceWith = curry(differenceWithFn);
 var update = curry(updateFn);
 var eqBy = curry(eqByFn);
@@ -79533,58 +79563,61 @@ var slice = curry(sliceFn);
 var swap = curry(swapFn);
 var when = curry(whenFn);
 var zipWith = curry(zipWithFn);
+var $forEach = forEach;
 var $toPairs = toPairs;
 
-// index.ts
-var createCategories = function() {
-  const dict = {};
-  $toPairs(CategoryLabelsByName).forEach(([name, label]) => {
-    dict[name] = {
-      label,
-      score: 0,
-      used: false,
-      textObject: null
-    };
-  }, {});
-  return dict;
-};
+// src/calculation.ts
 var countValues = function(values) {
   return values.reduce((acc, value) => {
     acc[value] = (acc[value] || 0) + 1;
     return acc;
   }, {});
 };
-var calculateScoreForNumericCategories = function(values, categoryValue) {
+function calculateScoreForNumericCategories(values, categoryValue) {
   return values.filter((value) => value === categoryValue).reduce((acc, value) => acc + value, 0);
-};
-var calculateFullHouseScore = function(values) {
+}
+function calculateFullHouseScore(values) {
   const counts = countValues(values);
   const isFullHouse = Object.values(counts).sort().join("") === "23";
   return isFullHouse ? 25 : 0;
-};
-var calculateChanceScore = function(values) {
+}
+function calculateChanceScore(values) {
   return values.reduce((acc, value) => acc + value, 0);
-};
-var calculateThreeOfAKindScore = function(values) {
+}
+function calculateThreeOfAKindScore(values) {
   const counts = countValues(values);
   return Object.values(counts).some((count) => count >= 3) ? calculateChanceScore(values) : 0;
-};
-var calculateFourOfAKindScore = function(values) {
+}
+function calculateFourOfAKindScore(values) {
   const counts = countValues(values);
   return Object.values(counts).some((count) => count >= 4) ? calculateChanceScore(values) : 0;
-};
-var calculateSmallStraightScore = function(values) {
+}
+function calculateSmallStraightScore(values) {
   const sortedUniqueValues = [...new Set(values)].sort().join("");
   const smallStrSeq = ["1234", "2345", "3456"];
   return smallStrSeq.some((seq) => sortedUniqueValues.includes(seq)) ? 30 : 0;
-};
-var calculateLargeStraightScore = function(values) {
+}
+function calculateLargeStraightScore(values) {
   const sortedUniqueVal = [...new Set(values)].sort().join("");
   return ["12345", "23456"].includes(sortedUniqueVal) ? 40 : 0;
-};
-var calculateYahtzeeScore = function(values) {
+}
+function calculateYahtzeeScore(values) {
   const counts = countValues(values);
   return Object.values(counts).some((count) => count === 5) ? 50 : 0;
+}
+
+// src/index.ts
+var createCategories = function() {
+  const dict = {};
+  $forEach((val, prop2) => {
+    dict[prop2] = {
+      label: val,
+      score: 0,
+      used: false,
+      textObject: null
+    };
+  }, CategoryLabelsByName);
+  return dict;
 };
 var CategoryLabelsByName = {
   Ones: "Ones",
@@ -79608,11 +79641,10 @@ class YahtzeeGame extends import_phaser.default.Scene {
   rollsLeft = 3;
   scoreText;
   categories = createCategories();
+  isCombinationSelected = false;
+  isDiceRolled = false;
   constructor() {
     super("YahtzeeGame");
-  }
-  calculateScoreForNumericCategories(values, categoryValue) {
-    return values.filter((value) => value === categoryValue).reduce((acc, value) => acc + value, 0);
   }
   preload() {
     this.load.image("dice1", "assets/dice1.png");
@@ -79670,6 +79702,7 @@ class YahtzeeGame extends import_phaser.default.Scene {
         }
       });
       this.rollsLeft--;
+      this.isDiceRolled = true;
       this.updateRollsLeftText();
     }
   }
@@ -79706,6 +79739,8 @@ class YahtzeeGame extends import_phaser.default.Scene {
     }
   }
   selectCategory(categoryName) {
+    if (!this.isDiceRolled || this.isCombinationSelected)
+      return;
     const category = this.categories[categoryName];
     if (category.used)
       return;
@@ -79713,14 +79748,37 @@ class YahtzeeGame extends import_phaser.default.Scene {
     const score = this.calculateScore(categoryName, values);
     category.score = score;
     category.used = true;
+    this.isCombinationSelected = true;
     if (category.textObject) {
       category.textObject.setStyle({ color: "#808080" });
       category.textObject.setText(`${category.label} (Used)`);
     }
     this.scoreText.setText(`Score for ${category.label}: ${score}`);
+    this.endTurn();
   }
   updateRollsLeftText() {
     this.rollButton.setText(`Roll Dice (${this.rollsLeft} left)`);
+  }
+  endTurn() {
+    this.checkGameOver();
+    this.prepareNextTurn();
+  }
+  prepareNextTurn() {
+    this.isCombinationSelected = false;
+    this.isDiceRolled = false;
+    this.rollsLeft = 3;
+    this.dice.forEach((dice) => {
+      dice.setData("held", false);
+      dice.setTint(16777215);
+    });
+    this.checkGameOver();
+    this.updateRollsLeftText();
+  }
+  checkGameOver() {
+    const allUsed = Object.values(this.categories).every((category) => category.used);
+    if (allUsed) {
+      console.log("Game Over");
+    }
   }
 }
 var config = {

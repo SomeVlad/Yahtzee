@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "bun --hot server.ts",
-    "build": "bun build index.ts --outdir ./public --watch"
+    "build": "bun build src/index.ts --outdir ./public --watch"
   },
   "devDependencies": {
     "@types/bun": "latest",

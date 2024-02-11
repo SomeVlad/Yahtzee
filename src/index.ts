@@ -1,22 +1,17 @@
 import Phaser from "phaser"
-import { reduce, toPairs } from "rambda/immutable"
+import { reduce, map, toPairs, mapObjIndexed, forEach } from "rambda/immutable"
+import {
+    calculateChanceScore,
+    calculateFourOfAKindScore,
+    calculateFullHouseScore,
+    calculateLargeStraightScore,
+    calculateScoreForNumericCategories,
+    calculateSmallStraightScore,
+    calculateThreeOfAKindScore,
+    calculateYahtzeeScore,
+} from "./calculation"
 
-type CategoryName =
-    | "Ones"
-    | "Twos"
-    | "Threes"
-    | "Fours"
-    | "Fives"
-    | "Sixes"
-    | "FullHouse"
-    | "Chance"
-    | "ThreeOfAKind"
-    | "FourOfAKind"
-    | "SmallStraight"
-    | "LargeStraight"
-    | "YAHTZEE"
-
-const CategoryLabelsByName: Record<CategoryName, string> = {
+const CategoryLabelsByName = {
     Ones: "Ones",
     Twos: "Twos",
     Threes: "Threes",
@@ -30,7 +25,9 @@ const CategoryLabelsByName: Record<CategoryName, string> = {
     SmallStraight: "Small Straight",
     LargeStraight: "Large Straight",
     YAHTZEE: "YAHTZEE",
-}
+} as const
+
+type CategoryName = keyof typeof CategoryLabelsByName
 
 interface Category {
     textObject: Phaser.GameObjects.Text | null
@@ -41,14 +38,14 @@ interface Category {
 
 function createCategories() {
     const dict = {} as Record<CategoryName, Category>
-    toPairs(CategoryLabelsByName).forEach(([name, label]) => {
-        dict[name] = {
-            label,
+    forEach((val, prop) => {
+        dict[prop as CategoryName] = {
+            label: val,
             score: 0,
             used: false,
             textObject: null,
         }
-    }, {})
+    }, CategoryLabelsByName)
 
     return dict
 }
@@ -57,20 +54,13 @@ class YahtzeeGame extends Phaser.Scene {
     dice: Phaser.GameObjects.Sprite[] = []
     rollButton!: Phaser.GameObjects.Text
     rollsLeft: number = 3
-    scoreText!: Phaser.GameObjects.Text // Ensure it's initialized in create method
+    scoreText!: Phaser.GameObjects.Text
     categories: Record<CategoryName, Category> = createCategories()
+    isCombinationSelected: boolean = false
+    isDiceRolled: boolean = false
 
     constructor() {
         super("YahtzeeGame")
-    }
-
-    private calculateScoreForNumericCategories(
-        values: number[],
-        categoryValue: number,
-    ): number {
-        return values
-            .filter((value) => value === categoryValue)
-            .reduce((acc, value) => acc + value, 0)
     }
 
     preload() {
@@ -150,6 +140,7 @@ class YahtzeeGame extends Phaser.Scene {
                 }
             })
             this.rollsLeft--
+            this.isDiceRolled = true // Indicate that the dice have been rolled this turn
             this.updateRollsLeftText()
         }
     }
@@ -188,6 +179,8 @@ class YahtzeeGame extends Phaser.Scene {
     }
 
     selectCategory(categoryName: CategoryName) {
+        if (!this.isDiceRolled || this.isCombinationSelected) return // prevent selecting another combination this turn
+
         const category = this.categories[categoryName]
 
         if (category.used) return // Ignore if already used
@@ -197,6 +190,7 @@ class YahtzeeGame extends Phaser.Scene {
 
         category.score = score
         category.used = true
+        this.isCombinationSelected = true
 
         if (category.textObject) {
             category.textObject.setStyle({ color: "#808080" })
@@ -204,10 +198,50 @@ class YahtzeeGame extends Phaser.Scene {
         }
 
         this.scoreText.setText(`Score for ${category.label}: ${score}`)
+        this.endTurn() // Prepare for the next turn
     }
 
     updateRollsLeftText() {
         this.rollButton.setText(`Roll Dice (${this.rollsLeft} left)`)
+    }
+
+    endTurn() {
+        // Check for game end condition here
+        this.checkGameOver()
+
+        // Prepare for the next turn
+        this.prepareNextTurn()
+    }
+
+    prepareNextTurn() {
+        // Reset turn state
+        this.isCombinationSelected = false
+        this.isDiceRolled = false
+        this.rollsLeft = 3 // Reset the number of rolls for the next turn
+
+        // Reset dice state
+        this.dice.forEach((dice) => {
+            dice.setData("held", false) // Optionally release all held dice
+            dice.setTint(0xffffff) // Reset tint color
+        })
+
+        // Check for game end condition here (e.g., all categories used)
+        // If game over, handle accordingly
+        this.checkGameOver()
+
+        // Update UI as necessary, e.g., rolls left text
+        this.updateRollsLeftText()
+    }
+
+    checkGameOver() {
+        const allUsed = Object.values(this.categories).every(
+            (category) => category.used,
+        )
+        if (allUsed) {
+            // Handle game over (e.g., show final score, restart option)
+            console.log("Game Over")
+            // Show final scores, restart button, etc.
+        }
     }
 }
 
@@ -225,59 +259,3 @@ const config: Phaser.Types.Core.GameConfig = {
 }
 
 new Phaser.Game(config)
-
-function countValues(values: number[]): Record<number, number> {
-    return values.reduce((acc: Record<number, number>, value) => {
-        acc[value] = (acc[value] || 0) + 1
-        return acc
-    }, {})
-}
-
-function calculateScoreForNumericCategories(
-    values: number[],
-    categoryValue: number,
-): number {
-    return values
-        .filter((value) => value === categoryValue)
-        .reduce((acc, value) => acc + value, 0)
-}
-
-function calculateFullHouseScore(values: number[]): number {
-    const counts = countValues(values)
-    const isFullHouse = Object.values(counts).sort().join("") === "23"
-    return isFullHouse ? 25 : 0
-}
-
-function calculateChanceScore(values: number[]): number {
-    return values.reduce((acc, value) => acc + value, 0)
-}
-
-function calculateThreeOfAKindScore(values: number[]): number {
-    const counts = countValues(values)
-    return Object.values(counts).some((count) => count >= 3)
-        ? calculateChanceScore(values)
-        : 0
-}
-
-function calculateFourOfAKindScore(values: number[]): number {
-    const counts = countValues(values)
-    return Object.values(counts).some((count) => count >= 4)
-        ? calculateChanceScore(values)
-        : 0
-}
-
-function calculateSmallStraightScore(values: number[]): number {
-    const sortedUniqueValues = [...new Set(values)].sort().join("")
-    const smallStrSeq = ["1234", "2345", "3456"]
-    return smallStrSeq.some((seq) => sortedUniqueValues.includes(seq)) ? 30 : 0
-}
-
-function calculateLargeStraightScore(values: number[]): number {
-    const sortedUniqueVal = [...new Set(values)].sort().join("")
-    return ["12345", "23456"].includes(sortedUniqueVal) ? 40 : 0
-}
-
-function calculateYahtzeeScore(values: number[]): number {
-    const counts = countValues(values)
-    return Object.values(counts).some((count) => count === 5) ? 50 : 0
-}
