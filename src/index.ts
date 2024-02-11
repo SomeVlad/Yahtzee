@@ -1,5 +1,5 @@
 import Phaser from "phaser"
-import { reduce, map, toPairs, mapObjIndexed, forEach } from "rambda/immutable"
+import { toPairs, forEach } from "rambda/immutable"
 import {
     calculateChanceScore,
     calculateFourOfAKindScore,
@@ -51,7 +51,6 @@ function createCategories() {
 }
 
 class YahtzeeGame extends Phaser.Scene {
-    dice: Phaser.GameObjects.Sprite[] = []
     rollButton!: Phaser.GameObjects.Text
     rollsLeft: number = 3
     scoreText!: Phaser.GameObjects.Text
