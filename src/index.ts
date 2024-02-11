@@ -1,5 +1,5 @@
 import Phaser from "phaser"
-import { toPairs, forEach } from "rambda/immutable"
+import { forEach, toPairs } from "rambda/immutable"
 import {
     calculateChanceScore,
     calculateFourOfAKindScore,
@@ -10,6 +10,9 @@ import {
     calculateThreeOfAKindScore,
     calculateYahtzeeScore,
 } from "./calculation"
+import { Dice } from "./components/Dice.ts"
+import { Button } from "./components/Button.ts"
+import { ScoreIndicator } from "./components/ScoreIndicator.ts"
 
 const CategoryLabelsByName = {
     Ones: "Ones",
@@ -50,7 +53,7 @@ function createCategories() {
     return dict
 }
 
-class YahtzeeGame extends Phaser.Scene {
+export class GameScene extends Phaser.Scene {
     rollButton!: Phaser.GameObjects.Text
     rollsLeft: number = 3
     scoreText!: Phaser.GameObjects.Text
@@ -58,48 +61,23 @@ class YahtzeeGame extends Phaser.Scene {
     isCombinationSelected: boolean = false
     isDiceRolled: boolean = false
     diceGroup!: Phaser.GameObjects.Group
+}
 
+class YahtzeeGame extends GameScene {
     constructor() {
         super("YahtzeeGame")
     }
 
     preload() {
-        this.load.image("dice1", "assets/dice1.png")
-        this.load.image("dice2", "assets/dice2.png")
-        this.load.image("dice3", "assets/dice3.png")
-        this.load.image("dice4", "assets/dice4.png")
-        this.load.image("dice5", "assets/dice5.png")
-        this.load.image("dice6", "assets/dice6.png")
+        this.load.atlasXML("dice", "assets/dice.png", "assets/dice.xml")
     }
 
     initializeDice() {
         this.diceGroup = this.add.group()
 
         for (let i = 0; i < 5; i++) {
-            const dice = this.add
-                .sprite(150 + i * 100, 100, "dice1")
-                .setInteractive()
-            dice.setData("value", 1) // Initial value
-            dice.setData("held", false) // Initialize held state
-
-            let heldIndicator = this.add
-                .text(150 + i * 100, 150, "", {
-                    fontSize: "16px",
-                    color: "#FFFFFF",
-                })
-                .setOrigin(0.5)
-            dice.setData("heldIndicator", heldIndicator)
-
-            dice.on("pointerdown", () => {
-                if (this.rollsLeft > 0 && this.rollsLeft < 3) {
-                    // Only allow holding if there are rolls left and after the first roll
-                    let isHeld = dice.getData("held")
-                    dice.setData("held", !isHeld)
-                    dice.setTint(!isHeld ? 0x86bfda : 0xffffff) // Change tint to indicate selection
-                    heldIndicator.setText(!isHeld ? "Held" : "")
-                }
-            })
-
+            const dice = new Dice(this, 150 + i * 100, 100)
+            this.add.existing(dice)
             this.diceGroup.add(dice)
         }
     }
@@ -108,14 +86,17 @@ class YahtzeeGame extends Phaser.Scene {
         toPairs(this.categories).forEach(([name, category], index) => {
             const yPos = 550 + 30 * index
 
-            // Store the text object reference
-            category.textObject = this.add
-                .text(400, yPos, category.label, {
-                    fontSize: "24px",
-                    color: "#FFF",
-                })
-                .setInteractive()
-                .on("pointerdown", () => this.selectCategory(name))
+            category.textObject = new ScoreIndicator(
+                this,
+                400,
+                yPos,
+                category.label,
+            )
+            this.add.existing(category.textObject)
+
+            category.textObject.setInteractive().on("pointerdown", () => {
+                this.selectCategory(name as CategoryName)
+            })
         })
     }
 
@@ -129,23 +110,17 @@ class YahtzeeGame extends Phaser.Scene {
         this.initializeCategories()
 
         // Roll button setup...
-        this.rollButton = this.add
-            .text(400, 500, "Roll Dice", { fontSize: "32px" })
-            .setInteractive()
-            .on("pointerdown", () => this.rollDice())
+        this.rollButton = new Button(this, 400, 500, "Roll Dice", () =>
+            this.rollDice(),
+        )
+        this.add.existing(this.rollButton)
     }
 
     rollDice() {
         if (this.rollsLeft > 0) {
             this.diceGroup.getChildren().forEach((diceObj) => {
-                const dice = diceObj as Phaser.GameObjects.Sprite
-
-                if (!dice.getData("held")) {
-                    // Roll and animate dice...
-                    let value = Phaser.Math.Between(1, 6)
-                    dice.setTexture(`dice${value}`)
-                    dice.setData("value", value)
-                }
+                const dice = diceObj as Dice
+                dice.roll()
             })
             this.rollsLeft--
             this.isDiceRolled = true // Indicate that the dice have been rolled this turn
@@ -192,21 +167,20 @@ class YahtzeeGame extends Phaser.Scene {
             return
         }
 
-        const values: number[] = this.diceGroup
-            .getChildren()
-            .map((dice) => dice.getData("value"))
-        const score = this.calculateScore(categoryName, values)
+        const values: number[] = this.diceGroup.getChildren().map((diceObj) => {
+            const dice = diceObj as Dice
 
-        category.score = score
+            return dice.getValue()
+        })
+
+        category.score = this.calculateScore(categoryName, values)
         category.used = true
         this.isCombinationSelected = true
 
-        if (category.textObject) {
-            category.textObject.setStyle({ color: "#808080" })
-            category.textObject.setText(`${category.label}: ${score}`)
+        if (category.textObject instanceof ScoreIndicator) {
+            category.textObject.updateScore(category.score)
         }
 
-        // this.scoreText.setText(`Score for ${category.label}: ${score}`)
         this.updateTotalScore()
         this.endTurn() // Prepare for the next turn
     }
@@ -216,7 +190,7 @@ class YahtzeeGame extends Phaser.Scene {
             (acc, category) => acc + category.score,
             0,
         )
-        this.scoreText.setText(`Total Score: ${totalScore}`)
+        this.scoreText.setText(`Score: ${totalScore}`)
     }
 
     updateRollsLeftText() {
@@ -224,10 +198,8 @@ class YahtzeeGame extends Phaser.Scene {
     }
 
     endTurn() {
-        // Check for game end condition here
         this.checkGameOver()
 
-        // Prepare for the next turn
         this.prepareNextTurn()
     }
 
@@ -239,20 +211,11 @@ class YahtzeeGame extends Phaser.Scene {
 
         // Reset dice state
         this.diceGroup.getChildren().forEach((diceObj) => {
-            const dice = diceObj as Phaser.GameObjects.Sprite
+            const dice = diceObj as Dice
 
-            dice.setData("held", false)
-            dice.setTint(0xffffff)
-            dice.getData("heldIndicator")?.setText("")
+            dice.reset()
         })
 
-        // this.initializeDice()
-
-        // Check for game end condition here (e.g., all categories used)
-        // If game over, handle accordingly
-        this.checkGameOver()
-
-        // Update UI as necessary, e.g., rolls left text
         this.updateRollsLeftText()
     }
 
@@ -261,9 +224,7 @@ class YahtzeeGame extends Phaser.Scene {
             (category) => category.used,
         )
         if (allUsed) {
-            // Handle game over (e.g., show final score, restart option)
             console.log("Game Over")
-            // Show final scores, restart button, etc.
         }
     }
 }

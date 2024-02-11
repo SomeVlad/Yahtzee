@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "",
-    "build:dev": "bun build src/index.ts --outdir ./build --watch",
+    "build:dev": "bun run scripts/build.ts && bun build src/index.ts --outdir ./build --watch",
     "serve:dev": "bun --hot server.ts",
     "build": "bun run scripts/build.ts",
     "serve": "bun server.ts"

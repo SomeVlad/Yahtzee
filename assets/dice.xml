@@ -1,0 +1,8 @@
+<TextureAtlas imagePath="sheet.png">
+	<SubTexture name="1" x="0" y="136" width="68" height="68"/>
+	<SubTexture name="2" x="68" y="68" width="68" height="68"/>
+	<SubTexture name="3" x="68" y="0" width="68" height="68"/>
+	<SubTexture name="4" x="68" y="136" width="68" height="68"/>
+	<SubTexture name="5" x="0" y="68" width="68" height="68"/>
+	<SubTexture name="6" x="0" y="0" width="68" height="68"/>
+</TextureAtlas>
