@@ -136,7 +136,9 @@ class YahtzeeGame extends Phaser.Scene {
 
     rollDice() {
         if (this.rollsLeft > 0) {
-            this.diceGroup.getChildren().forEach((dice) => {
+            this.diceGroup.getChildren().forEach((diceObj) => {
+                const dice = diceObj as Phaser.GameObjects.Sprite
+
                 if (!dice.getData("held")) {
                     // Roll and animate dice...
                     let value = Phaser.Math.Between(1, 6)
@@ -184,11 +186,10 @@ class YahtzeeGame extends Phaser.Scene {
     }
 
     selectCategory(categoryName: CategoryName) {
-        if (!this.isDiceRolled || this.isCombinationSelected) return // prevent selecting another combination this turn
-
         const category = this.categories[categoryName]
-
-        if (category.used) return // Ignore if already used
+        if (!this.isDiceRolled || this.isCombinationSelected || category.used) {
+            return
+        }
 
         const values: number[] = this.diceGroup
             .getChildren()
@@ -201,11 +202,20 @@ class YahtzeeGame extends Phaser.Scene {
 
         if (category.textObject) {
             category.textObject.setStyle({ color: "#808080" })
-            category.textObject.setText(`${category.label} (Used)`)
+            category.textObject.setText(`${category.label}: ${score}`)
         }
 
-        this.scoreText.setText(`Score for ${category.label}: ${score}`)
+        // this.scoreText.setText(`Score for ${category.label}: ${score}`)
+        this.updateTotalScore()
         this.endTurn() // Prepare for the next turn
+    }
+
+    updateTotalScore() {
+        const totalScore = Object.values(this.categories).reduce(
+            (acc, category) => acc + category.score,
+            0,
+        )
+        this.scoreText.setText(`Total Score: ${totalScore}`)
     }
 
     updateRollsLeftText() {
@@ -226,14 +236,16 @@ class YahtzeeGame extends Phaser.Scene {
         this.isDiceRolled = false
         this.rollsLeft = 3 // Reset the number of rolls for the next turn
 
-        // // Reset dice state
-        // this.diceGroup.getChildren().forEach((dice) => {
-        //     dice.setData("held", false)
-        //     dice.setTint(0xffffff)
-        //     // dice.setTint(0xffffff) // Reset tint color
-        // })
+        // Reset dice state
+        this.diceGroup.getChildren().forEach((diceObj) => {
+            const dice = diceObj as Phaser.GameObjects.Sprite
 
-        this.initializeDice()
+            dice.setData("held", false)
+            dice.setTint(0xffffff)
+            dice.getData("heldIndicator")?.setText("")
+        })
+
+        // this.initializeDice()
 
         // Check for game end condition here (e.g., all categories used)
         // If game over, handle accordingly

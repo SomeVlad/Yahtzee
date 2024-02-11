@@ -79696,7 +79696,8 @@ class YahtzeeGame extends import_phaser.default.Scene {
   }
   rollDice() {
     if (this.rollsLeft > 0) {
-      this.diceGroup.getChildren().forEach((dice) => {
+      this.diceGroup.getChildren().forEach((diceObj) => {
+        const dice = diceObj;
         if (!dice.getData("held")) {
           let value = import_phaser.default.Math.Between(1, 6);
           dice.setTexture(`dice${value}`);
@@ -79741,11 +79742,10 @@ class YahtzeeGame extends import_phaser.default.Scene {
     }
   }
   selectCategory(categoryName) {
-    if (!this.isDiceRolled || this.isCombinationSelected)
-      return;
     const category = this.categories[categoryName];
-    if (category.used)
+    if (!this.isDiceRolled || this.isCombinationSelected || category.used) {
       return;
+    }
     const values = this.diceGroup.getChildren().map((dice) => dice.getData("value"));
     const score = this.calculateScore(categoryName, values);
     category.score = score;
@@ -79753,10 +79753,14 @@ class YahtzeeGame extends import_phaser.default.Scene {
     this.isCombinationSelected = true;
     if (category.textObject) {
       category.textObject.setStyle({ color: "#808080" });
-      category.textObject.setText(`${category.label} (Used)`);
+      category.textObject.setText(`${category.label}: ${score}`);
     }
-    this.scoreText.setText(`Score for ${category.label}: ${score}`);
+    this.updateTotalScore();
     this.endTurn();
+  }
+  updateTotalScore() {
+    const totalScore = Object.values(this.categories).reduce((acc, category) => acc + category.score, 0);
+    this.scoreText.setText(`Total Score: ${totalScore}`);
   }
   updateRollsLeftText() {
     this.rollButton.setText(`Roll Dice (${this.rollsLeft} left)`);
@@ -79769,7 +79773,12 @@ class YahtzeeGame extends import_phaser.default.Scene {
     this.isCombinationSelected = false;
     this.isDiceRolled = false;
     this.rollsLeft = 3;
-    this.initializeDice();
+    this.diceGroup.getChildren().forEach((diceObj) => {
+      const dice = diceObj;
+      dice.setData("held", false);
+      dice.setTint(16777215);
+      dice.getData("heldIndicator")?.setText("");
+    });
     this.checkGameOver();
     this.updateRollsLeftText();
   }
